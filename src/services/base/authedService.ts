@@ -5,10 +5,11 @@ const loginService = new LoginApiService();
 
 export class AuthedService extends ApiService {
   static apiUrl: string = `${process.env.REACT_APP_API_URL}`;
+  private static refreshPromise: Promise<any> | null = null;
 
   public async injectJWTIntoHeader(header: Record<string, string> = {}) {
     try {
-      const token = await loginService.getValidToken();
+      const token = await this.getValidTokenSingleton();
       return {
         ...header,
         Authorization: `Bearer ${token?.access}`,
@@ -18,12 +19,33 @@ export class AuthedService extends ApiService {
     }
   }
 
-  public async get(endpoint: string, isBlob?: boolean): Promise<any> {
+  private async getValidTokenSingleton() {
+    // If there's already a refresh in progress, wait for it
+    if (AuthedService.refreshPromise) {
+      return AuthedService.refreshPromise;
+    }
+
+    try {
+      // Start new token validation/refresh process
+      AuthedService.refreshPromise = loginService.getValidToken();
+      const result = await AuthedService.refreshPromise;
+      return result;
+    } finally {
+      // Clear the promise so future calls know there's no refresh in progress
+      AuthedService.refreshPromise = null;
+    }
+  }
+
+  public async get(
+    endpoint: string,
+    isBlob?: boolean,
+    isExternalUri?: boolean
+  ): Promise<any> {
     const requestOptions: RequestInit = {
       method: "GET",
       headers: await this.injectJWTIntoHeader(),
     };
-    return super.fetchGet(endpoint, requestOptions, isBlob);
+    return super.fetchGet(endpoint, requestOptions, isBlob, isExternalUri);
   }
 
   public async post(endpoint: string, body: any): Promise<any> {

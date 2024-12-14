@@ -12,9 +12,10 @@ export class ApiService {
   protected async fetchGet(
     uri: string,
     options: RequestInit,
-    isBlob?: boolean
+    isBlob?: boolean,
+    isExternalUri: boolean = false
   ): Promise<any> {
-    const endpoint = this.buildEndpoint(uri);
+    const endpoint = isExternalUri ? uri : this.buildEndpoint(uri);
     return fetch(endpoint, options).then((response) =>
       this.handleResponse(response, isBlob)
     );

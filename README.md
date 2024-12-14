@@ -75,7 +75,43 @@ In a production environment, with a proper JWT generating API, and a proper JWT 
 
 Provide an answer below:
 
-> DELETE THIS QUOTE AND REPLACE IT WITH YOUR ANSWER
+> DELETE THIS QUOTE
+
+> Critical Production Issues with Parallel Refresh Calls
+
+1. Token Invalidation
+
+- Many authentication servers implement a security measure where generating a new refresh token automatically invalidates the previous one
+- With parallel refresh calls, all but one will fail because each subsequent call is using an already-invalidated refresh token
+- This can lead to authentication failures and users being unexpectedly logged out
+
+2. Race Conditions
+
+- Different refresh calls might return different tokens
+- This creates a race condition where the last token to be stored might not be the one that other parallel requests are using
+- Result: Some requests might fail with 401 errors even with a "valid" token
+
+3. Server Load & Rate Limiting
+
+- Authentication endpoints are often rate-limited for security
+- Multiple refresh calls from the same client can quickly hit these limits
+- This creates unnecessary load on authentication servers
+- In high-traffic applications, this can significantly impact server performance
+
+4. Security Implications
+
+- Each refresh token operation is a security-sensitive operation
+- Multiple parallel refresh operations increase the attack surface
+- More network traffic with sensitive tokens increases the risk of token interception
+- Makes it harder to track and audit token refresh patterns
+
+5. User Experience Impact
+
+- Failed requests due to token invalidation require the user to log in again
+- Inconsistent authentication state can cause parts of the application to work while others fail
+- This creates a confusing and frustrating user experience
+
+### The solution we implemented using the refreshPromise singleton pattern addresses these issues by ensuring only one refresh operation occurs at a time, maintaining a consistent authentication state across all parallel requests.
 
 ---
 
@@ -230,3 +266,67 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+## Key changes to Problem #1:
+
+1. Added a static refreshPromise property to track ongoing refresh operations
+2. Created a new getValidTokenSingleton private method that:
+
+- Checks if a refresh is already in progress
+- If yes, returns the existing promise
+- If no, starts a new token validation/refresh and stores the promise
+- Cleans up the promise when done
+
+3. Modified injectJWTIntoHeader to use the new singleton method
+
+## This solution:
+
+- Maintains the existing code structure and inheritance
+- Ensures only one refresh operation happens at a time
+- Makes all parallel requests wait for the same refresh operation
+- Handles cleanup properly to allow future refresh operations
+- Is thread-safe and handles edge cases
+
+> The changes are minimal and focused on the token refresh synchronization issue while preserving all other functionality. You can test it by:
+
+- Logging in
+- Refreshing the page
+- Observing that only one refresh call is made, even with multiple parallel API calls
+
+## key changes to problem 2:
+
+### Key features implemented:
+
+1. Service Layer:
+
+- Singleton pattern for the users service
+- Type-safe interface for the API response
+
+2. Table Features:
+
+- Client-side pagination with 13 items per page
+- Email column sorting
+- First name and Last name filtering
+- Loading state with centered spinner
+- Avatar component for images with fallback
+
+3. UI/UX:
+
+- Clean table layout with proper spacing
+- Efficient image loading with Avatar component
+- Responsive design
+- Search functionality for name fields
+
+4. Data Management:
+
+- React Query for data fetching and caching
+- Type-safe column definitions
+- Proper error handling
+
+> The Avatar component was chosen for images because:
+
+- Built-in lazy loading improves performance
+- Handles failed image loads gracefully
+- Shows user initials as fallback
+- Provides a consistent, professional appearance
+- Optimized for user profile pictures
